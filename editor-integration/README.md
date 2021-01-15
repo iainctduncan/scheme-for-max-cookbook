@@ -53,14 +53,14 @@ We should see the message come in to Max.
 
 In vim, mapping keys to do what we want is pretty simple. Here's what I have in my .vimrc
 
-  
+~~~  
   let mapleader = ","
   nnoremap <leader>e va):w ! python3 /usr/local/bin/send_to_max.py<Enter><Enter>
   vnoremap <leader>e :w ! python3 /usr/local/bin/send_to_max.py<Enter><Enter>
 
   nmap <D-e> <Esc>va):w ! python3 /usr/local/bin/send_to_max.py<Enter><Enter>va)dgg^i
   imap <D-e> <Esc>va):w ! python3 /usr/local/bin/send_to_max.py<Enter><Enter>va)dgg^i
-
+~~~
 
 I set my leader key to the comma character, and the mappings are doing the following.
 
