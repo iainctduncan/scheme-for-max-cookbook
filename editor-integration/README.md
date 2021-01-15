@@ -87,10 +87,12 @@ this recipe!
 At the moment (2021-01-15), you can only send one paranthetical expression. If you want
 so send many, you'll need to wrap them in a begin statement:
 
+~~~
   (begin    
     (first sexp to eval)
     (second sexp to eval)
   ); end of begin
+~~~
 
 I intent to fix Scheme for Max so that eval-string does this automatically for us,
 and I will update this tutorial once that is done.
