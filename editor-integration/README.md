@@ -1,8 +1,8 @@
 # Scheme For Max Cookbook - Editor Integration
 
 This recipe demonstrates an effective workflow for sending code to Scheme For Max from your editor.
-Specifically, this includes mapper functions for Vim, GVim, or MVim, but adapting to other
-editors should be simple.
+Specifically, this includes mapper functions for the Vim family of editors, but adapting to other
+editors should be straightforward.
 
 ## Overview
 In a nutshell, the way it works is:
@@ -62,7 +62,7 @@ In vim, mapping keys to do what we want is pretty simple. Here's what I have in 
   imap <D-e> <Esc>va):w ! python3 /usr/local/bin/send_to_max.py<Enter><Enter>va)dgg^i
 ~~~
 
-I set my leader key to the comma character, and the mappings are doing the following.
+I set my leader key to the comma character, and the mappings are doing the following:
 
 1) If in normal mode, pressing ',e' does a visual select of the currently enclosed 
 parenthetical expression, followed by the ex command to send selection to the Python 
@@ -84,8 +84,8 @@ this recipe!
 
 
 # Issues:
-At the moment (2021-01-15), you can only send one paranthetical expression. If you want
-so send many, you'll need to wrap them in a begin statement:
+At the moment (2021-01-15), you can only send one s-expression. If you want
+to send many, you'll need to wrap them in a begin statement:
 
 ~~~
   (begin    
