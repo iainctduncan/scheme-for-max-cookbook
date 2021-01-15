@@ -20,6 +20,7 @@ on both python 2.X and 3.X, and has nice online examples.
 
 The Python script is very simple. I've saved it as 'send_to_max.py' on my system.
 
+~~~
   import liblo
   import sys
 
@@ -30,7 +31,7 @@ The Python script is very simple. I've saved it as 'send_to_max.py' on my system
   # send as a raw string
   liblo.send(liblo.Address(port), contents)
   # you could also preface the raw contents to make various osc messages  
-
+~~~
 
 # Max code
 
