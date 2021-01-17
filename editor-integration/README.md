@@ -28,6 +28,8 @@ The Python script is very simple. I've saved it as 'send_to_max.py' on my system
   port = 7777
   # read all of stdin and put in one string
   contents = "\n".join( sys.stdin.readlines() )
+  # surround in a begin to allow evaling more than one s-exps in one go
+  contents = "(begin %s)" % contents
   # send as a raw string
   liblo.send(liblo.Address(port), contents)
   # you could also preface the raw contents to make various osc messages  
@@ -83,16 +85,4 @@ Python script. If you get this going for other editors, let me know and we can u
 this recipe!
 
 
-# Issues:
-At the moment (2021-01-15), you can only send one s-expression. If you want
-to send many, you'll need to wrap them in a begin statement:
 
-~~~
-  (begin    
-    (first sexp to eval)
-    (second sexp to eval)
-  ); end of begin
-~~~
-
-I intent to fix Scheme for Max so that eval-string does this automatically for us,
-and I will update this tutorial once that is done.
