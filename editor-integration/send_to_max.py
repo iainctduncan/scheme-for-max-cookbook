@@ -3,6 +3,8 @@ import sys
 
 # read all of stdin and put in one string
 contents = "\n".join( sys.stdin.readlines() )
+# surround in a begin to allow evaling more than one sexp
+contents = "(begin %s)" % contents
 # send as a raw string
 liblo.send(liblo.Address(7777), contents)
 
