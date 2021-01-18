@@ -60,12 +60,12 @@ Just a real slim one for now.  It'd be nice to have a full bidirectional Geiser 
 (defun send-buffer-to-e4l ()
   "Send the buffer to s4m"
   (interactive)
-  (e4l-eval (buffer-string)))
+  (e4l-eval (buffer-substring-no-properties (point-min) (point-max))))
 
 (defun last-sexp-to-e4l ()
   "Send the last sexpr to s4m"
   (interactive)
-  (e4l-eval (buffer-substring (save-excursion (backward-sexp) (point)) (point))))
+  (e4l-eval (buffer-substring-no-properties (save-excursion (backward-sexp) (point)) (point))))
 #+end_src
 
 * Max Thing
