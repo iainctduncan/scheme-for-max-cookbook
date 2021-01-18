@@ -1,0 +1,73 @@
+#+title: Emacs for Live
+#+author: jonnay
+
+* Setup
+
+Make sure you install osc.el
+
+This is done up org-mode style.  For now just do ~(org-babel-load-file /this-file/)~ and it will set everything up.  A proper elisp file is on the todo list.
+
+* Notes
+  
+  This is some bare-bones basic functionality for now.  I'm providing it so that others can take this and hack on it to make it better. 
+
+* Plans
+
+  I want to make a bi-directional thing that makes it easy to examine max-for-live objects. Hence Emacs-for-live, or e4l.
+
+* Code
+
+** Setting up network connections
+
+*** Client
+
+This bit of jiggery-pokery is the jiggery-pokery that worked.  Using the osc.el functions to set up the network connection didn't.  
+
+I am not sure why yet. My current bullshit theory is that the UDP connections would time-out between the osc-client call and when I was using it. 
+
+#+begin_src emacs-lisp
+(require 'osc)
+ 
+(defvar e4l-osc-client nil "Connection to send OSC From Emacs")
+
+(defun e4l-osc-make-client (host port)
+  (make-network-process
+   :name "OSC client"
+   :host host
+   :service port
+   :type 'datagram
+   :family 'ipv4))
+
+(defun e4l-osc-connect ()
+  (if e4l-osc-client   (delete-process e4l-osc-client))
+  (setq e4l-osc-client (osc-make-client "localhost" 7723)))
+
+#+end_src
+
+
+** Low Level stuff
+
+#+begin_src emacs-lisp 
+(defun e4l-eval (code)
+  (osc-send-message (osc-connect) "/eval" (format "(begin %s)" code)))
+#+end_src
+
+** Interface
+
+Just a real slim one for now.  It'd be nice to have a full bidirectional Geiser thing sometime, but baby steps!
+
+#+begin_src emacs-lisp 
+(defun send-buffer-to-e4l ()
+  "Send the buffer to s4m"
+  (interactive)
+  (e4l-eval (buffer-string)))
+
+(defun last-sexp-to-e4l ()
+  "Send the last sexpr to s4m"
+  (interactive)
+  (e4l-eval (buffer-substring (save-excursion (backward-sexp) (point)) (point))))
+#+end_src
+
+* Max Thing
+
+coming soon
