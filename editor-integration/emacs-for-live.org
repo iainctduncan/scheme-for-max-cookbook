@@ -17,6 +17,8 @@ This is done up org-mode style.  For now just do ~(org-babel-load-file /this-fil
 
 * Code
 
+(org-babel-load-file  "./emacs-for-live.org")
+  
 ** Setting up network connections
 
 *** Client
@@ -25,23 +27,17 @@ This bit of jiggery-pokery is the jiggery-pokery that worked.  Using the osc.el 
 
 I am not sure why yet. My current bullshit theory is that the UDP connections would time-out between the osc-client call and when I was using it. 
 
+**NOTE:** you'll need to use 127.0.0.1 assuming you're sending stuff to localhost, rather than ~localhost~. 
+
 #+begin_src emacs-lisp
 (require 'osc)
  
 (defvar e4l-osc-client nil "Connection to send OSC From Emacs")
 
-(defun e4l-osc-make-client (host port)
-  (make-network-process
-   :name "OSC client"
-   :host host
-   :service port
-   :type 'datagram
-   :family 'ipv4))
-
 (defun e4l-osc-connect ()
-  (if e4l-osc-client   (delete-process e4l-osc-client))
-  (setq e4l-osc-client (osc-make-client "localhost" 7723)))
-
+  (when e4l-osc-client (delete-process e4l-osc-client))
+  (setq e4l-osc-client (osc-make-client "127.0.0.1" 7723))
+  e4l-osc-client)
 #+end_src
 
 
@@ -49,7 +45,13 @@ I am not sure why yet. My current bullshit theory is that the UDP connections wo
 
 #+begin_src emacs-lisp 
 (defun e4l-eval (code)
-  (osc-send-message (osc-connect) "/eval" (format "(begin %s)" code)))
+  (osc-send-message (e4l-osc-connect) "/eval" (format "(begin %s)" code)))
+
+(defun e4l-scan ()
+  (osc-send-message (e4l-osc-connect) "/scan" ""))
+
+(defun e4l-reset ()
+  (osc-send-message (e4l-osc-connect) "/reset" ""))
 #+end_src
 
 ** Interface
@@ -57,17 +59,22 @@ I am not sure why yet. My current bullshit theory is that the UDP connections wo
 Just a real slim one for now.  It'd be nice to have a full bidirectional Geiser thing sometime, but baby steps!
 
 #+begin_src emacs-lisp 
-(defun send-buffer-to-e4l ()
+(defun e4l-send-buffer ()
   "Send the buffer to s4m"
   (interactive)
   (e4l-eval (buffer-substring-no-properties (point-min) (point-max))))
 
-(defun last-sexp-to-e4l ()
+(defun e4l-send-last-sexp ()
   "Send the last sexpr to s4m"
   (interactive)
   (e4l-eval (buffer-substring-no-properties (save-excursion (backward-sexp) (point)) (point))))
 #+end_src
 
-* Max Thing
+** Simplified test:
 
-coming soon
+#+begin_src emacs-lisp 
+(e4l-eval "(post 'test)")
+#+end_src
+
+
+
