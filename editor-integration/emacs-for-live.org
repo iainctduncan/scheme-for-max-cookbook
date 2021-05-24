@@ -78,3 +78,98 @@ Just a real slim one for now.  It'd be nice to have a full bidirectional Geiser 
 
 
 
+* Bi-directionality
+
+  First we need a scheme function to send out the sexp over udp.  This ass-u-mes that we have an udpsend object with varname ~udp-send~.  It's kebab-cased because that's scheme'er.
+
+  Maybe this should be renamed to ~send-to-e4l~ for consistency?
+
+#+begin_src scheme
+(define (send-to-e4l path . result)
+  (apply send (append (list 'udp-send path) result)))
+#+end_src
+
+Next up we need a listening UDP server.  Note that the server code is familiar to the client code.  That's strike 2.  3 strikes and it should be refactored!
+
+#+begin_src emacs-lisp 
+(defvar e4l-osc-server nil)
+
+(defun e4l-server-start ()
+  "Starts the listening server"
+  (when e4l-osc-server (delete-process e4l-osc-server))
+  (setq e4l-osc-server (osc-make-server 127.0.0.1 7724 'e4l-echo-handler)))
+
+(defun e4l-echo-handler (path &rest args)
+  "Basic handler just outputs whatever came into it into the message buffer"
+  (message "E4L: [path: %s] %S" path args))
+#+end_src
+
+Now, lets make an attach function that verifies the bidirectional communication.  We use the same name as most other emacs functions.  In the future this could be a real REPL, but... baby steps!
+
+*** TODO set up tangling so we can just dump the scheme code with <<<HEREDOC>>>
+
+#+begin_src emacs-lisp 
+(defun run-e4l ()
+  "Set up s4l to be bidirectional and send a test message"
+  (e4l-server-start)
+  (e4l-eval "(define (send-to-e4l path . result) (apply send (append (list 'udp-send path) result)))")
+  (e4l-eval "(post 'prepping-to-send)")
+  (e4l-eval "(send-to-e4l '/test \"BidiCon Established!\"))")
+#+end_src
+
+So now you can get results back from e4l via this bidirectional...thing.  Boy howdy wouldn't it be cool if the console just output those messages?
+
+Well...
+
+#+begin_src scheme
+(define (s4m-filter-result result)
+  (let ((converted (object->string result)))
+    (send-to-e4l '/console converted))
+  result)
+#+end_src
+
+Did it work?
+
+#+begin_src emacs-lisp 
+(e4l-eval "(post 'test)")
+#+end_src
+
+YEEESSS.
+
+* Emacs for Live
+
+  We'll need a ~live.object~ connected to the s4m object.  For now it goes in inlet2 and it's varname is ~live-object~.
+
+  We also have a ~live.path~ in going in inlet 2 of the ~live.object~ with the script name ~live-path~.
+
+  Here is a bit of basic peeking at the live environment
+  
+#+begin_src scheme 
+(send 'live-path 'path 'live_app)
+
+(define (e4l-info-handler . args)
+  (send-to-e4l '/live-object (object->string args)))
+
+(listen 1 'info e4l-info-handler)
+
+(send 'live-object 'getinfo)
+#+end_src
+
+This then fills up the console, both—emacs and max—with:
+
+#begin_example
+E4L: [path: /live-object] ("((type Application))")
+E4L: [path: /live-object] ("((description This class represents the Live application.))")
+E4L: [path: /live-object] ("((children control_surfaces ControlSurface))")
+E4L: [path: /live-object] ("((child view View))")
+E4L: [path: /live-object] ("((property current_dialog_button_count int))")
+E4L: [path: /live-object] ("((property current_dialog_message str))")
+E4L: [path: /live-object] ("((property open_dialog_count int))")
+E4L: [path: /live-object] ("((function get_bugfix_version))")
+E4L: [path: /live-object] ("((function get_document))")
+E4L: [path: /live-object] ("((function get_major_version))")
+E4L: [path: /live-object] ("((function get_minor_version))")
+E4L: [path: /live-object] ("((function press_current_dialog_button))")
+E4L: [path: /live-object] ("((done))")
+#end_example
+
