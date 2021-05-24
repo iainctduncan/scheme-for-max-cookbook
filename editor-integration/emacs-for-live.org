@@ -157,7 +157,7 @@ YEEESSS.
 
 This then fills up the console, both—emacs and max—with:
 
-#begin_example
+#+begin_example
 E4L: [path: /live-object] ("((type Application))")
 E4L: [path: /live-object] ("((description This class represents the Live application.))")
 E4L: [path: /live-object] ("((children control_surfaces ControlSurface))")
@@ -171,5 +171,5 @@ E4L: [path: /live-object] ("((function get_major_version))")
 E4L: [path: /live-object] ("((function get_minor_version))")
 E4L: [path: /live-object] ("((function press_current_dialog_button))")
 E4L: [path: /live-object] ("((done))")
-#end_example
+#+end_example
 
