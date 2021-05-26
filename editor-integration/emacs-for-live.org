@@ -7,6 +7,11 @@ Make sure you install osc.el
 
 This is done up org-mode style.  For now just do ~(org-babel-load-file /this-file/)~ and it will set everything up.  A proper elisp file is on the todo list.
 
+#+begin_src emacs-lisp :tangle no
+(org-babel-load-file "emacs-for-live.org")
+#+end_src
+
+
 * Notes
   
   This is some bare-bones basic functionality for now.  I'm providing it so that others can take this and hack on it to make it better. 
@@ -64,7 +69,7 @@ Just a real slim one for now.  It'd be nice to have a full bidirectional Geiser 
   (interactive)
   (e4l-eval (buffer-substring-no-properties (point-min) (point-max))))
 
-(defun e4l-send-last-sexp ()
+(defun e4l-eval-last-sexp ()
   "Send the last sexpr to s4m"
   (interactive)
   (e4l-eval (buffer-substring-no-properties (save-excursion (backward-sexp) (point)) (point))))
@@ -72,7 +77,7 @@ Just a real slim one for now.  It'd be nice to have a full bidirectional Geiser 
 
 ** Simplified test:
 
-#+begin_src emacs-lisp 
+#+begin_src emacs-lisp :tangle no
 (e4l-eval "(post 'test)")
 #+end_src
 
@@ -97,7 +102,9 @@ Next up we need a listening UDP server.  Note that the server code is familiar t
 (defun e4l-server-start ()
   "Starts the listening server"
   (when e4l-osc-server (delete-process e4l-osc-server))
-  (setq e4l-osc-server (osc-make-server 127.0.0.1 7724 'e4l-echo-handler)))
+  (setq e4l-osc-server (osc-make-server "127.0.0.1" 7724 'e4l-echo-handler)))
+
+(e4l-server-start)
 
 (defun e4l-echo-handler (path &rest args)
   "Basic handler just outputs whatever came into it into the message buffer"
@@ -114,12 +121,17 @@ Now, lets make an attach function that verifies the bidirectional communication.
   (e4l-server-start)
   (e4l-eval "(define (send-to-e4l path . result) (apply send (append (list 'udp-send path) result)))")
   (e4l-eval "(post 'prepping-to-send)")
-  (e4l-eval "(send-to-e4l '/test \"BidiCon Established!\"))")
+  (e4l-eval "(send-to-e4l '/test \"BidiCon Established!\"))"))
 #+end_src
 
 So now you can get results back from e4l via this bidirectional...thing.  Boy howdy wouldn't it be cool if the console just output those messages?
 
 Well...
+
+#+begin_src emacs-lisp :tangle no
+(run-e4l)
+#+end_src
+
 
 #+begin_src scheme
 (define (s4m-filter-result result)
@@ -142,12 +154,12 @@ YEEESSS.
 
   We also have a ~live.path~ in going in inlet 2 of the ~live.object~ with the script name ~live-path~.
 
-  Here is a bit of basic peeking at the live environment
+  Here is a bit of basic peeking at the live environment:
   
 #+begin_src scheme 
 (send 'live-path 'path 'live_app)
 
-(define (e4l-info-handler . args)
+(define (e4l-info-handler args) 
   (send-to-e4l '/live-object (object->string args)))
 
 (listen 1 'info e4l-info-handler)
@@ -155,21 +167,101 @@ YEEESSS.
 (send 'live-object 'getinfo)
 #+end_src
 
+This:
+
+  - sends a message to object with varname live-path which sets the current object under inspection to be the Live app
+  - defines a listener to send the results of getinfo to emacs-for-live
+  - register the listener to inlet 1
+  - sends a message to a live.object (varname live-object) with the getinfo message
+  - live.object sends back a message per result of the get info in the format of a simple list of ~type data~
+  - the listener makes it a lispy datatype and wraps it in a osc /live-object message
+
 This then fills up the console, both—emacs and max—with:
 
 #+begin_example
-E4L: [path: /live-object] ("((type Application))")
-E4L: [path: /live-object] ("((description This class represents the Live application.))")
-E4L: [path: /live-object] ("((children control_surfaces ControlSurface))")
-E4L: [path: /live-object] ("((child view View))")
-E4L: [path: /live-object] ("((property current_dialog_button_count int))")
-E4L: [path: /live-object] ("((property current_dialog_message str))")
-E4L: [path: /live-object] ("((property open_dialog_count int))")
-E4L: [path: /live-object] ("((function get_bugfix_version))")
-E4L: [path: /live-object] ("((function get_document))")
-E4L: [path: /live-object] ("((function get_major_version))")
-E4L: [path: /live-object] ("((function get_minor_version))")
-E4L: [path: /live-object] ("((function press_current_dialog_button))")
-E4L: [path: /live-object] ("((done))")
+E4L: [path: /live-object] ("(id 2147418112)")
+E4L: [path: /live-object] ("(type Application)")
+E4L: [path: /live-object] ("(description This class represents the Live application.)")
+E4L: [path: /live-object] ("(children control_surfaces ControlSurface)")
+E4L: [path: /live-object] ("(child view View)")
+E4L: [path: /live-object] ("(property current_dialog_button_count int)")
+E4L: [path: /live-object] ("(property current_dialog_message str)")
+E4L: [path: /live-object] ("(property open_dialog_count int)")
+E4L: [path: /live-object] ("(function get_bugfix_version)")
+E4L: [path: /live-object] ("(function get_document)")
+E4L: [path: /live-object] ("(function get_major_version)")
+E4L: [path: /live-object] ("(function get_minor_version)")
+E4L: [path: /live-object] ("(function press_current_dialog_button)")
+E4L: [path: /live-object] ("(done)")
 #+end_example
 
+** Setting up a live inspector handler
+
+   With that done we can get even more better.  We set up an osc-server handler to listen to ~/live-object~ messages and then output them to a buffer.  The handler will dispatch each result back from live.object to a helper function in the format of ~e4l--live-object-type-handler~. We'll also define a fallback called ~e4l--live-object-unfound-handler-handler~.
+
+   The main object handler will set up a buffer called ~*e4l-object*~, and then each individual handler function writes to it.  Since we "know" ~id~ will be the first result back, we take this opportunity to erase the buffer. This will surely be the cause of some bugs later.
+
+   The ~done~ handler is a cheeky no-op.
+   
+#+begin_src emacs-lisp
+(defun e4l-live-object-handler (path arg)
+  (with-current-buffer (get-buffer-create "*e4l-object*")
+    (let* ((item (eval (read (concat "'" arg))))
+           (type (car item))
+           (args (cdr item))
+           (fn-name (intern-soft (concat "e4l--live-object-" (symbol-name type) "-handler")))
+           (fn (if fn-name fn-name 'e4l--live-object-unfound-handler-handler)))
+      (funcall fn type args))
+    (pop-to-buffer "*e4l-object*")))
+
+
+(defun e4l--live-object-id-handler (type args)
+  (erase-buffer)
+  (insert (format "ID: %s\n" (car args))))
+
+(defun e4l--live-object-type-handler (type args)
+  (insert (format "%s\n" (car args))))
+
+(defun e4l--live-object-description-handler (type args)
+  (insert (string-join (mapcar #'symbol-name args) " "))
+  (insert "\n\n"))
+
+(defun e4l--live-object-unfound-handler-handler (type args)
+  (insert (format "[%s] %S\n" type args)))
+
+(defun e4l--live-object-done-handler (type args)
+  (insert "\n\nSuperPowers!"))
+
+(osc-server-set-handler e4l-osc-server "/live-object" #'e4l-live-object-handler)
+
+#+end_src
+
+Now anytime that s4m sends /live-object to us, we'll get a buffer full of information about the live object under inspection!
+
+* Setting up a Minor Mode
+
+  Before we go too much further it's probably a good idea to set up a minor mode for emacs-for-live.  It would be nice to be able to send previous sexprs and buffers with keystrokes.
+
+  #+begin_src emacs-lisp 
+
+  (defvar e4l-mode-map
+    (let ((map (make-sparse-keymap)))
+      (define-key map [remap eval-last-sexp] #'e4l-eval-last-sexp)
+      (define-key map [remap geiser-eval-buffer] #'e4l-eval-buffer))
+    "Keymap for E4L mode")
+
+  (define-minor-mode e4l-mode
+    "Emacs for Live, a minor mode for interacting with Scheme for Max.
+  Turning this minor mode on will enable keybindings, and open up the
+  UDP ports for communication."
+    nil " λ🎛" e4l-mode-map
+    (run-e4l))
+  #+end_src
+
+  For some reason the bindings don't work.  My guess is that the Geiser minor mode is taking precedence of the key-binding.  I'll need to look into this a little further.  My guess is that e4l-mode-map needs to inherit the geiser keymap.  It's been a long time since I have done some emacs coding, so I am not sure.
+
+  * Bad Network Mojo testing
+
+For whatever reason I am having bad network mojo. The fix seems to be switching the receiving port of Max.  Some process, I expect maybe Max within Live, just chews up the port and refuses to spit it out.
+
+If this happens, the easiest thing to do is to switch ports from 7723 to some other number. You'll need to also update the udpreceive object, which I am sure is the culprit.
