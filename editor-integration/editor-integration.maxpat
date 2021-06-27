@@ -10,7 +10,7 @@
 		}
 ,
 		"classnamespace" : "box",
-		"rect" : [ -304.0, -919.0, 1087.0, 537.0 ],
+		"rect" : [ -452.0, -1035.0, 986.0, 638.0 ],
 		"bglocked" : 0,
 		"openinpresentation" : 0,
 		"default_fontsize" : 12.0,
@@ -41,13 +41,14 @@
 		"boxes" : [ 			{
 				"box" : 				{
 					"fontface" : 1,
-					"fontsize" : 24.0,
+					"fontsize" : 36.0,
 					"id" : "obj-10",
+					"linecount" : 2,
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 53.0, 23.0, 706.0, 33.0 ],
-					"text" : "Scheme For Max Cookbook - Editor Integration Example"
+					"patching_rect" : [ 34.500000238418579, 23.0, 498.666664659976959, 87.0 ],
+					"text" : "Scheme For Max Cookbook\n        Editor Integration "
 				}
 
 			}
@@ -58,7 +59,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 346.0, 244.0, 229.0, 33.0 ],
+					"patching_rect" : [ 348.000000059604645, 300.000001668930054, 229.0, 33.0 ],
 					"presentation_linecount" : 3,
 					"text" : "Message box to show output while getting it working, can be deleted"
 				}
@@ -67,13 +68,12 @@
 , 			{
 				"box" : 				{
 					"id" : "obj-7",
-					"linecount" : 2,
 					"maxclass" : "message",
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 350.0, 200.166666388511658, 229.0, 35.0 ],
-					"text" : "\"(post :hello)\n\""
+					"patching_rect" : [ 352.000000059604645, 256.166668057441711, 229.0, 36.0 ],
+					"text" : "(my-fun)\n"
 				}
 
 			}
@@ -84,7 +84,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 198.0, 148.000000059604645, 150.0, 33.0 ],
+					"patching_rect" : [ 200.000000059604645, 204.000001728534698, 150.0, 33.0 ],
 					"text" : "< port needs to match your osc sending script"
 				}
 
@@ -96,7 +96,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 84.0, 91.0, 291.0, 33.0 ],
+					"patching_rect" : [ 86.000000059604645, 147.000001668930054, 291.0, 33.0 ],
 					"text" : "< not necessary for this patch, but convenient to allow sending code from other parts to s4m"
 				}
 
@@ -108,7 +108,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 189.0, 194.666666388511658, 150.0, 33.0 ],
+					"patching_rect" : [ 191.000000059604645, 250.666668057441711, 150.0, 33.0 ],
 					"text" : "< bang to see that we got a udp message"
 				}
 
@@ -121,7 +121,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "bang" ],
 					"parameter_enable" : 0,
-					"patching_rect" : [ 148.0, 194.666666388511658, 24.0, 24.0 ]
+					"patching_rect" : [ 150.000000059604645, 250.666668057441711, 24.0, 24.0 ]
 				}
 
 			}
@@ -132,7 +132,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 91.0, 148.000000059604645, 97.0, 22.0 ],
+					"patching_rect" : [ 93.000000059604645, 204.000001728534698, 97.0, 22.0 ],
 					"text" : "udpreceive 7777"
 				}
 
@@ -143,7 +143,7 @@
 					"maxclass" : "newobj",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 26.833333194255829, 297.333328187465668, 99.0, 22.0 ],
+					"patching_rect" : [ 28.833333253860474, 353.333329856395721, 99.0, 22.0 ],
 					"text" : "print s4m-output:"
 				}
 
@@ -155,7 +155,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 21.833333194255829, 117.000000059604645, 57.0, 22.0 ],
+					"patching_rect" : [ 23.833333253860474, 173.000001728534698, 57.0, 22.0 ],
 					"text" : "tosymbol"
 				}
 
@@ -167,7 +167,7 @@
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 45.833333194255829, 230.0, 35.0, 22.0 ],
+					"patching_rect" : [ 47.833333253860474, 286.000001668930054, 35.0, 22.0 ],
 					"text" : "reset"
 				}
 
@@ -179,7 +179,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 26.833333194255829, 194.666666388511658, 111.0, 22.0 ],
+					"patching_rect" : [ 28.833333253860474, 250.666668057441711, 111.0, 22.0 ],
 					"text" : "prepend eval-string"
 				}
 
@@ -191,7 +191,7 @@
 					"numinlets" : 0,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 21.833333194255829, 91.0, 59.0, 22.0 ],
+					"patching_rect" : [ 23.833333253860474, 147.000001668930054, 59.0, 22.0 ],
 					"text" : "r #0_s4m"
 				}
 
@@ -203,7 +203,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 26.833333194255829, 264.0, 91.0, 22.0 ],
+					"patching_rect" : [ 28.833333253860474, 320.000001668930054, 91.0, 22.0 ],
 					"saved_object_attributes" : 					{
 						"ins" : 1,
 						"log-null" : 0,
@@ -250,7 +250,7 @@
 , 			{
 				"patchline" : 				{
 					"destination" : [ "obj-37", 0 ],
-					"midpoints" : [ 55.333333194255829, 256.0, 37.0, 256.0, 37.0, 263.0, 36.333333194255829, 263.0 ],
+					"midpoints" : [ 57.333333253860474, 312.000001668930054, 39.000000059604645, 312.000001668930054, 39.000000059604645, 319.000001668930054, 38.333333253860474, 319.000001668930054 ],
 					"source" : [ "obj-33", 0 ]
 				}
 
