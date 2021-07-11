@@ -1,5 +1,7 @@
 #+title: Emacs for Live
 #+author: jonnay
+#+PROPERTY: header-args       :results silent :noweb yes
+#+PROPERTY: header-args:elisp :lexical t
 
 * Setup
 
@@ -12,10 +14,6 @@ You can bootstrap this file by moving the point into this code block and hitting
 (use-package osc)
 (org-babel-load-file "emacs-for-live.org")
 #+end_src
-
-
-#+RESULTS:
-: Loaded emacs-for-live.el
 
 
 * Notes
@@ -63,6 +61,9 @@ I am not sure why yet. My current bullshit theory is that the UDP connections wo
 
 (defun e4l-reset ()
   (osc-send-message (e4l-osc-connect) "/reset" ""))
+
+(defun e4l-testconn ()
+  (osc-send-message (e4l-osc-connect) "/testconn" "bang"))
 #+end_src
 
 ** Interface
@@ -93,8 +94,7 @@ Just a real slim one for now.  It'd be nice to have a full bidirectional Geiser 
 
   First we need a scheme function to send out the sexp over udp.  This ass-u-mes that we have an udpsend object with varname ~udp-send~.  It's kebab-cased because that's scheme'er.
 
-  Maybe this should be renamed to ~send-to-e4l~ for consistency?
-
+#+name: send-to-e4l
 #+begin_src scheme
 (define (send-to-e4l path . result)
   (apply send (append (list 'udp-send path) result)))
@@ -104,36 +104,49 @@ Next up we need a listening UDP server.  Note that the server code is familiar t
 
 Note that right now we just cheerfully assume a single client and a single server process. This may not be smart.
 
+The server will need to set up some paths for listening to different OSC messages.  ~e4l-add-server-path~ handles that, it's just a wrapper around osc-add-path. 
+
 #+begin_src emacs-lisp 
+(defvar e4l-osc-server nil)
+(defvar e4l-osc-server-path-handlers '())
+
 (defun e4l-server-start ()
   "Starts the listening server"
   (when e4l-osc-server (delete-process e4l-osc-server))
-  (setq e4l-osc-server (osc-make-server "127.0.0.1" 7724 'e4l-echo-handler)))
+  (setq e4l-osc-server (osc-make-server "127.0.0.1" 7724 'e4l-echo-handler))
+  (mapc (lambda (path)
+            (osc-server-set-handler e4l-osc-server (car path) (cdr path)))
+        e4l-osc-server-path-handlers)
+  e4l-osc-server)
 
 (defun e4l-echo-handler (path &rest args)
   "Basic handler just outputs whatever came into it into the message buffer"
   (message "E4L: [path: %s] %S" path args))
 
-(defvar e4l-osc-server (e4l-server-start))
+(defun e4l-add-server-path (path handler)
+  (add-to-list 'e4l-osc-server-path-handlers (cons path handler) t))
 
 #+end_src
 
 Now, lets make an attach function that verifies the bidirectional communication.  We use the same name as most other emacs functions.  In the future this could be a real REPL, but... baby steps!
 
-*** TODO set up tangling so we can just dump the scheme code with <<<HEREDOC>>>
+We will also set up a helper function that takes a list of scheme code, converts it to a string for sending across the network.  By using emacs org-mode noweb expansions, we should be able to write scheme code in scheme mode, and easily embed it in the elisp.
 
-#+begin_src emacs-lisp :tangle yes
+#+begin_src emacs-lisp
+(defun e4l-eval-list (lst)
+  (e4l-eval (prin1 lst)))
+
 (defun run-e4l ()
   "Set up s4l to be bidirectional and send a test message"
   (interactive)
   (e4l-server-start)
-  (e4l-eval "(define (send-to-e4l path . result) (apply send (append (list 'udp-send path) result)))")
+  (e4l-eval-list (quote
+   <<send-to-e4l>>
+  ))
   (e4l-eval "(post 'prepping-to-send)")
-  (e4l-eval "(send-to-e4l '/test \"BidiCon Established!\"))"))
+  (e4l-eval "(send-to-e4l '/test \"BidiCon Established!\"))")
+  (e4l-scan))
 #+end_src
-
-#+RESULTS:
-: run-e4l
 
 So now you can get results back from e4l via this bidirectional...thing.  Boy howdy wouldn't it be cool if the console just output those messages?
 
@@ -142,9 +155,6 @@ Well...
 #+begin_src emacs-lisp :tangle no
 (run-e4l)
 #+end_src
-
-
-#+RESULTS:
 
 
 #+name: send-console-to-emacs
@@ -207,20 +217,30 @@ YEEESSS.
    (else 
     (apply send (concat '(live-path path) path-or-id)))))
 
+;; not sure about this signature 
 (define (e4l-get-info . path)
   (e4l-set-id path)
   (send 'live-object 'getinfo))
 
-(define (e4l-prop-handler args)
-  (send-to-e4l '/live-prop (object->string args)))
-
 (define (e4l-get-prop path-or-id prop)
   (e4l-set-id path-or-id)
-  (listen 1 prop e4l-prop-handler)
+  (listen 1 prop (lambda (args)
+                   (send-to-e4l '/live-property prop (object->string args))))
   (send 'live-object 'get prop))
 
+(define (e4l-get-child-info parent-id child)
+  (e4l-set-id parent-id)
+  (listen 1 child (lambda (args)
+                    (post 'yo)
+                    (post args)
+                    (apply e4l-get-info args)))
+  (send 'live-object 'get child))
+
+#+end_src
+
+#+begin_src scheme
 (apply send (concat '(live-object id) 56))
-(send 'live-object 'getinfo)
+(send 'live-object 'getinfo)x
 
 (e4l-set-id '(live_set))
 (e4l-set-id '(id 33))
@@ -232,10 +252,13 @@ YEEESSS.
 (e4l-get-info '(id 33))
 (e4l-get-info 'live_set)
 
+(e4l-get-prop '(id 33) 'input_routing_channel)
+
 (e4l-get-prop '(live_set) 'scale_name)
 (e4l-get-prop '(live_set) 'scale_intervals)
 (e4l-get-prop '(live_set) 'master_track)
 #+end_src
+
 
 This:
 
@@ -287,8 +310,12 @@ E4L: [path: /live-object] ("(done)")
   (when (string-equal "done" arg)
     (pop-to-buffer "*e4l-object*")))
 
+(defvar e4l--live-object-current-id nil)
+
 (defun e4l--live-object-id-handler (type args)
+  (setq buffer-read-only nil)
   (erase-buffer)
+  (setq e4l--live-object-current-id (car args))
   (insert (format "ID: %s\n" (car args))))
 
 (defun e4l--live-object-type-handler (type args)
@@ -302,19 +329,137 @@ E4L: [path: /live-object] ("(done)")
   (insert (format "[%s] %S\n" type args)))
 
 (defun e4l--live-object-done-handler (type args)
+  (setq buffer-read-only t)
   (insert "\n\nSuperPowers!"))
 
-(osc-server-set-handler e4l-osc-server "/live-object" #'e4l-live-object-handler)
-
-
+(e4l-add-server-path "/live-object" #'e4l-live-object-handler)
 #+end_src
 
-#+RESULTS:
-| :generic | e4l-echo-handler | :handlers | ((/live-object . e4l-live-object-handler)) |
+
 
 Now anytime that s4m sends /live-object to us, we'll get a buffer full of information about the live object under inspection!
 
+** Prettifying the buffer and making it funkier
 
+If we want to test out the e4l browser, then assuming we've run the proper scheme code, all that is needed is to execute this:
+
+#+begin_src emacs-lisp :tangle no
+(progn
+  (e4l-eval-list '(e4l-get-info 'live_set))
+  (pop-to-buffer "*e4l-object*"))
+#+end_src
+
+*** Properties
+
+    Every time the live object browser gets a property result, it can display it as a custom property, then we can attach a point handler to send out a get-prop on that ID.  Then we can set up a listener to listen for those property messages and display them.
+
+**** Sending on the emacs side
+#+begin_src emacs-lisp :lexical t
+(defun e4l--make-live-object-property-getter (id property-name)
+  (lambda (&rest _)
+    (e4l-eval-list `(e4l-get-prop (quote (id ,id)) ',property-name))))
+
+(defun e4l--live-object-property-handler (type args)
+  (let ((property-name (car args))
+        (property-type (cadr args)))
+    (insert (propertize (format "Property: %s (%s) -> []\n" property-name property-type)
+                        'point-entered (e4l--make-live-object-property-getter e4l--live-object-current-id property-name)
+                        'e4l-property-name property-name))))
+#+end_src
+
+Note that for manually executing the closure created by e4l--make-live-object-property-getter, you can do:
+
+#+begin_src emacs-lisp :tangle no
+(funcall (e4l--make-live-object-property-getter 1 'scenes))
+#+end_src
+
+Sometimes you might need to do that, because the ~point-entered~ function won't get executed.
+
+**** listening
+
+#+begin_src emacs-lisp 
+(defun e4l--live-object-show-property-if-applicable (type prop arg)
+  (with-current-buffer (get-buffer "*e4l-object*")
+    (save-excursion
+      (let* ((prop-name-boundary-regexp "[^A-Za-z0-9_]")
+             (prop-name (progn
+                          (beginning-of-buffer)
+                          (re-search-forward (concat prop-name-boundary-regexp
+                                                     (regexp-quote prop)
+                                                     prop-name-boundary-regexp))))
+             (eol (progn (end-of-line) (point)))
+             (bol (progn (beginning-of-line) (point)))
+             (value (progn (search-forward " -> " eol))))
+        (delete-region value eol)
+        (insert (format "%s" (e4l--get-string-representation (read arg))))))))
+
+(defun e4l--get-string-representation (thing)
+  (cond
+   ((null thing) nil)
+   ((atom thing) (format "%s" thing))
+   ((= 1 (length thing))
+    (e4l--get-string-representation (car thing)))
+   ((eq (car thing) 'symbol)
+    (string-join (mapcar (lambda (x) (princ x)) (cdr thing)) " "))
+   ((eq (car thing) 'id)
+    (concat (propertize (format "Obj[%s]" (cadr thing))
+                        'face '(:underline t)
+                        'e4l-type 'id
+                        'e4l-id (cadr thing))
+            " "
+            (e4l--get-string-representation (cddr thing))))
+   (t (concat (e4l--get-string-representation (car thing))
+              " "
+              (e4l--get-string-representation (cdr thing))))))
+
+(e4l-add-server-path "/live-property" #'e4l--live-object-show-property-if-applicable)
+#+end_src
+
+*** Childs
+
+    Childs are a special case, we will want to grab the ID of the child, and then if the user hits enter on that line, we want to do a live getinfo for that id.
+
+#+begin_src emacs-lisp :lexical t
+(defun e4l--live-object-child-handler (type args)
+  (let ((child-property (car args))
+        (child-type (cadr args))
+        (map (make-sparse-keymap "Sparse Keymap for E4L navigation")))
+    (insert (propertize (format "Child (%s): %s\n"
+                                child-type
+                                child-property)
+                        'e4l-type 'child
+                        'e4l-parent-id e4l--live-object-current-id
+                        'e4l-child-property child-property
+                        'face '(:underline t)))))
+
+(defun e4l-object-browse-at-point ()
+  "Retrieves the current item at point"
+  (interactive)
+  (let* ((type (get-text-property (point) 'e4l-type))
+         (fn (intern-soft (concat "e4l--object-handle--" (symbol-name type)))))
+    (when fn
+      (funcall fn))))
+
+(defun e4l--object-handle--child ()
+  (let ((parent-id (get-text-property (point) 'e4l-parent-id))
+        (child-property (get-text-property (point) 'e4l-child-property)))
+    (e4l-eval-list `(e4l-get-child-info '(id ,parent-id) ',child-property))))
+#+end_src
+
+*** Children
+
+    An even specialer case.  When we get Children, we get a list of IDs back, so we want to show the IDs, and then when the user hits enter on a given id, browse to that thing.
+
+#+begin_src emacs-lisp 
+(defun e4l--live-object-children-handler (type args)
+  (let ((children-name (car args))
+        (children-type (cadr args)))
+    (insert (propertize (format "Children %s (%s): -> \n" children-name children-type)
+                        'point-entered (e4l--make-live-object-property-getter e4l--live-object-current-id children-name)))))
+                                              
+#+end_src
+
+    
 * Documentation
   s7 is self documenting, which means that we should use that facility to retrieve documentation about a given function.
 
@@ -325,18 +470,16 @@ Now anytime that s4m sends /live-object to us, we'll get a buffer full of inform
       (erase-buffer)
       (insert (pp docs)))))
 
-(osc-server-set-handler e4l-osc-server "/doc" #'e4l-doc-handler)
+(e4l-add-server-path "/doc" #'e4l-doc-handler)
 #+end_src
 
 #+begin_src scheme 
 (define (e4l-send-documentation obj)
-  (send-to-e4l '/documentation
-               (object->string (list 
-                                :doc (documentation obj)          
-                                :sig (signature obj)              
-                                :arity (arity obj)))))
-
-(e4l-send-documentation string-append)
+  (send-to-e4l '/doc
+               (object->string
+                `((:doc ,(documentation obj))
+                  (:sig (signature obj))
+                  (:arity (arity obj))))))
 #+end_src
 
 
@@ -358,7 +501,7 @@ Now anytime that s4m sends /live-object to us, we'll get a buffer full of inform
   Turning this minor mode on will enable keybindings, and open up the
   UDP ports for communication.
 
-  If geiser-mode is enabled, this minor mode will disable it.  One day
+  If geiser-mode is enabled, this minor modqe will disable it.  One day
   e4l will just fit into geiser mode, but that is a long way off!"
     nil " λ🎛" e4l-mode-map
     (if geiser-mode (geiser-mode -1))
@@ -372,9 +515,7 @@ Now anytime that s4m sends /live-object to us, we'll get a buffer full of inform
 
 Console messages that end up using the emacs messaging system are ... well ... to put it bluntly, they suck.
 
-Instead lets dump them to a window to keep a running log.  We'll set up another osc handler and then grab the buffer and dump the contents to the end. 
-
-note that this code isn't quite up to snuff, but it is getting there.  Probably the best way to handle this is to send messages directly to a udpsend object. 
+Instead lets dump them to a window to keep a running log.  We'll set up another osc handler and then grab the buffer and dump the contents to the end.
 
 #+begin_src emacs-lisp 
 (defun e4l-console-handler (path &rest args)
@@ -383,7 +524,7 @@ note that this code isn't quite up to snuff, but it is getting there.  Probably 
     (goto-char (point-max))
     (insert (format "%S" args) "\n")))
 
-(osc-server-set-handler e4l-osc-server "/console" #'e4l-console-handler)
+(e4l-add-server-path "/console" #'e4l-console-handler)
 
 #+end_src
 
@@ -411,11 +552,10 @@ If this happens, the easiest thing to do is to switch ports from 7723 to some ot
   "Changes the e4l port to the new number and does an eval test to make sure it works."
   (interactive "nPort Number: ")
   (setq e4l-osc-clientport port)
-  (e4l-eval (concat "(apply send '(udp-send '/port-confirm "(number-to-string e4l-osc-clientport) "))")))
+  (e4l-eval (concat "(send-to-e4l '/port-confirm "(number-to-string e4l-osc-clientport) "))")))
 
 (defun e4l-port-confirm-handler (path args)
   (message "E4L: Confirmed port set to %s" args))
  
-(osc-server-set-handler e4l-osc-server "/port-confirm" #'e4l-port-confirm-handler)
-
+(e4l-add-server-path "/port-confirm" #'e4l-port-confirm-handler)
 #+end_src
