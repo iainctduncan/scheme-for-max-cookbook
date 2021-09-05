@@ -15,4 +15,10 @@ Rather than have it misbehave, I have it check the thread and refuse to do anyth
 To use from a high thread, make a low thread s4m object and send it messages for API calls. These
 will automatically be defered and will run on the next low priority thread pass.
 
+The **live-api** object is the low-level api interface. You would normally leave this alone.
+If you want to trace it's execution, set the **debug** attribute to #true for verbose logging.
 
+The **live** object is an example of an object you might make to put your high-level functions
+in that call the API.
+
+This has been tested with Scheme for Max 0.2, Live 11, and Max 8. 
