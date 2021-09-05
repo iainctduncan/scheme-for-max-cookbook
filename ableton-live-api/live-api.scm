@@ -18,6 +18,33 @@
 ; - optional thispatcher scripting to do the max object dependency creation for us  
 
 
+
+; a sample high level api object that user might extend
+; sample call: (live 'get-track-volume 0)
+; you would add your high level methods here
+(define (live . args)
+
+  ; sample high level methods one might make
+  (define (fire-clip track slot)
+    (live-api 'send-path `(live_set tracks ,track clip_slots ,slot clip) '(call fire)))
+
+  (define (stop-clip track slot)
+    (live-api 'send-path `(live_set tracks ,track clip_slots ,slot clip) '(call stop)))
+
+  (define (get-track-volume track)
+    (live-api 'send-path `(live_set tracks ,track mixer_device volume) `(get value)))
+
+  (define (set-track-volume track volume)
+    (live-api 'send-path `(live_set tracks ,track mixer_device volume) `(set value ,volume)))
+
+  ; dispatcher
+  (let ((msg (car args))
+        (args (cdr args)))
+    (apply (eval msg) args))
+)
+      
+
+; the low-level api, you should not need to touch this
 (define live-api
   (let ((obj-id #f)   ; object id of last path request
         (value #f)    ; value received for successful value requests
@@ -71,29 +98,6 @@
           (else '()))))
 ))    
 
-; a sample high level api object that user might extend
-; called: (live 'get-track-volume 0) 
-(define (live . args)
-
-  ; sample high level methods one might make
-  (define (fire-clip track slot)
-    (live-api 'send-path `(live_set tracks ,track clip_slots ,slot clip) '(call fire)))
-
-  (define (stop-clip track slot)
-    (live-api 'send-path `(live_set tracks ,track clip_slots ,slot clip) '(call stop)))
-
-  (define (get-track-volume track)
-    (live-api 'send-path `(live_set tracks ,track mixer_device volume) `(get value)))
-
-  (define (set-track-volume track volume)
-    (live-api 'send-path `(live_set tracks ,track mixer_device volume) `(set value ,volume)))
-
-  ; dispatcher
-  (let ((msg (car args))
-        (args (cdr args)))
-    (apply (eval msg) args))
-)
-      
   
 
 
