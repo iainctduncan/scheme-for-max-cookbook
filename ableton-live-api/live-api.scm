@@ -8,74 +8,95 @@
 ; If you want to call it from an s4m @thread high instance, make a low instance and send it messages,
 ; which get automatically defered.
 ;
-; This code assumes the following patching:
-;   |live.path {scripting name "live-path"}| -> |route id| -> |prepend live-api 'id| -> |s4m @thread low|
-;   |id $1 {scripting name "live-object-id}| -> |live.object {scripting name "live-object"}| 
+; This code assumes the following patchingm where {} indicates scripting name:
+; |live.path {live-path}| -> |route id| -> |prepend live-api 'id| -> |s4m @thread low|
+; |id $1 {live-object-id}| -> |live.object {live-object}| -> |route value| -> |prepend live-api 'value| -> |s4m @thread low|
 
 ; Sample calls:
 ; find and send a message:
 ;   (live-api 'send-path '(live_set tracks 0 clips_slots 0 clip) '(call fire))
-; find object: 
-;   (live-api 'path '(my path here') 
-; send to last found object:
-;   (live-api 'send-object '(call stop))
-
-; TODO:
-; - getting results back from live.object
 ; - optional thispatcher scripting to do the max object dependency creation for us  
 
 
 (define live-api
-  (let ((obj-id #f))
+  (let ((obj-id #f)   ; object id of last path request
+        (value #f)    ; value received for successful value requests
+        (debug #f))   ; set to true for verbose log messages
  
     ; the id callback, called from the response from the live.path obj
     ; updates internal (last object) id and sends id message to the live.object
-    (define (update-id obj-id-arg)
-      (post "(live-api.update-id" obj-id-arg)
-      (set! obj-id obj-id-arg)
-      (if obj-id
-        (send 'live-object-id 'int obj-id)
-        (post "live-api-error: no message sent for id" obj-id))
-    )
+    (define (update-id id)
+      (log-debug "live-api.update-id" id)
+      (set! obj-id id)
+      (send 'live-object-id 'int obj-id))
+
+    ; the value callback, called from the response from the live.object obj
+    ; updates internal (last object) value so caller can return value
+    (define (update-value value-in)
+      (log-debug "live-api.update-value" value-in)
+      (set! value value-in))
 
     ; method to find an object from a live path
     ; results in live.path object calling back with the id callback
-    (define (find-object path)
-      (post "(live-api.find-object" path)
+    (define (find-path path)
+      (log-debug "(live-api.find" path ")")
+      (set! obj-id #f)
       (apply send (cons 'live-path (cons 'path path))))
 
     (define (send-object msg-list)
-      (post "(live-api.send-object" msg-list)
-      (apply send (cons 'live-object msg-list))) 
+      (log-debug "live-api.send-object" msg-list )
+      (set! value #f)
+      (apply send (cons 'live-object msg-list))
+      ; if the above resulted in an update to value, return it, else null
+      (if value value '()))
 
-    (define (send-path path msg-list)
-      (post "(send-from-path" path msg-list)
-      (find-object path)
-      (send-object msg-list))
+    (define (send-path path msg)
+      (log-debug "live-api.send-path" path msg)
+      (find-path path)
+      (send-object msg))
 
-    ; sample high level methods one might make
-    (define (fire-clip track slot)
-      (find-object `(live_set tracks ,track clip_slots ,slot clip))
-      (send-object '(call fire)))
-
-    (define (stop-clip track slot)
-      (find-object `(live_set tracks ,track clip_slots ,slot clip))
-      (send-object '(call stop)))
+    (define (log-debug . args)
+      (if debug (apply post args) '()))
 
     ; dispatcher
     (lambda (msg . args)
       (if (isr?)
         (post "Error: live-api requires s4m @thread low")
         (case msg
-          ('path      (find-object args))
           ('id        (update-id (args 0)))     
-          ('send      (send-object args))
+          ('value     (update-value (args 0)))     
+          ('path      (find-path (args 0)))
+          ('object    (send-object (args 0)))
           ('send-path (send-path (args 0) (args 1)))
-          ; sample higher level methods
-          ('fire-clip (fire-clip (args 0) (args 1)))
-          ('stop-clip (stop-clip (args 0) (args 1)))
           (else '()))))
 ))    
+
+; a sample high level api object that user might extend
+; called: (live 'get-track-volume 0) 
+(define (live . args)
+
+  ; sample high level methods one might make
+  (define (fire-clip track slot)
+    (live-api 'send-path `(live_set tracks ,track clip_slots ,slot clip) '(call fire)))
+
+  (define (stop-clip track slot)
+    (live-api 'send-path `(live_set tracks ,track clip_slots ,slot clip) '(call stop)))
+
+  (define (get-track-volume track)
+    (live-api 'send-path `(live_set tracks ,track mixer_device volume) `(get value)))
+
+  (define (set-track-volume track volume)
+    (live-api 'send-path `(live_set tracks ,track mixer_device volume) `(set value ,volume)))
+
+  ; dispatcher
+  (let ((msg (car args))
+        (args (cdr args)))
+    (apply (eval msg) args))
+)
+      
+  
+
+
 
 
 ; sample max patcher code of the object dependencies
@@ -207,4 +228,3 @@
 ;	"classnamespace" : "box"
 ;}
 ;
-
