@@ -10,10 +10,12 @@ There is some max patching that this depends on. You need to set that up, and ru
 to work so that the objects with scripting names can be found. The plumbing is in the
 "live-api" abstraction in the sample patch. 
  
-This only works in the low priority thread - this is a limitation of Max4Live, not Scheme for Max.
+This only works in the low priority thread - this is a limitation of Max4Live, not Scheme for Max,
+and is the same as any use of the Live API as live.object implicitly defers to the low thread.
 Rather than have it misbehave, I have it check the thread and refuse to do anything if in the high-thread.
-To use from a high thread, make a low thread s4m object and send it messages for API calls. These
-will automatically be defered and will run on the next low priority thread pass.
+To trigger api calls from a high thread, you should make a second s4m object in the  low thread 
+and send it messages to tell it to make API calls. These will automatically be defered 
+and will run on the next low priority thread pass.
 
 The **live-api** object is the low-level api interface. You would normally leave this alone.
 If you want to trace it's execution, set the **debug** attribute to #true for verbose logging.
