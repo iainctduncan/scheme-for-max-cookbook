@@ -238,9 +238,11 @@ YEEESSS.
 
 #+end_src
 
-#+begin_src scheme
+Here are some examples of how it works
+
+#+begin_src scheme 
 (apply send (concat '(live-object id) 56))
-(send 'live-object 'getinfo)x
+(send 'live-object 'getinfo)
 
 (e4l-set-id '(live_set))
 (e4l-set-id '(id 33))
@@ -343,9 +345,10 @@ Now anytime that s4m sends /live-object to us, we'll get a buffer full of inform
 
 If we want to test out the e4l browser, then assuming we've run the proper scheme code, all that is needed is to execute this:
 
-#+begin_src emacs-lisp :tangle no
-(progn
-  (e4l-eval-list '(e4l-get-info 'live_set))
+#+begin_src emacs-lisp
+(defun e4l-browse-live-object (object)
+  (interactive "SLive Object To Browse: ")
+  (e4l-eval-list `(e4l-get-info ',object))
   (pop-to-buffer "*e4l-object*"))
 #+end_src
 
@@ -370,7 +373,7 @@ If we want to test out the e4l browser, then assuming we've run the proper schem
 Note that for manually executing the closure created by e4l--make-live-object-property-getter, you can do:
 
 #+begin_src emacs-lisp :tangle no
-(funcall (e4l--make-live-object-property-getter 1 'scenes))
+(funcall (e4l--make-live-object-property-getter 2147418112 'control_surfaces))
 #+end_src
 
 Sometimes you might need to do that, because the ~point-entered~ function won't get executed.
@@ -444,6 +447,11 @@ Sometimes you might need to do that, because the ~point-entered~ function won't 
   (let ((parent-id (get-text-property (point) 'e4l-parent-id))
         (child-property (get-text-property (point) 'e4l-child-property)))
     (e4l-eval-list `(e4l-get-child-info '(id ,parent-id) ',child-property))))
+
+(defun e4l--object-handle--id ()
+  (let ((id (get-text-property (point) 'e4l-id)))
+    (message "getting id %s" id)
+    (e4l-eval-list `(e4l-get-info 'id ,id))))
 #+end_src
 
 *** Children
