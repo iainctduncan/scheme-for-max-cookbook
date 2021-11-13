@@ -12,41 +12,47 @@
 
 ;; data tracks, for simplicty we are making a one bar sequencer of 4 tracks
 (define data (vector 
-  (make-vector 16 0) 
-  (make-vector 16 120)  ;; initialize dur to a value of one 16th at 480pq
-  (make-vector 16 0) 
-  (make-vector 16 0)))
+  (make-vector 16 0)    ;; on-vector
+  (make-vector 16 120)  ;; dur-vector
+  (make-vector 16 0)    ;; pitch(note)-vector
+  (make-vector 16 0)))  ;; vel-vector
 
-;; hash-table of sub-vector index for a given param
-(define param-track (hash-table   
+;; hash-table of sub-vector index for a given parameter
+(define parameters (hash-table   
     :on     0      ;; on button for the step
-    :dur    1      ;; duration in max clock ticks (480 ppq)
-    :note   2      ;; amp, 0-127
-    :vel    3      ;; midi note num  
-))
+    :dur    1      ;; duration in max clock ticks (1/4 note = 480 ppq)
+    :note   2      ;; midi note number
+    :vel    3  ))  ;; note velocity
+
+;; return parameter data by keywords defined in parameters hash-table
+;;; e.g. (track-data :note)
+(define (track-data param)
+  (data (parameters param)))
 
 ;; internal var for the step we are on
 (define curr-step 0)
 
 ;*******************************************************************************
 ;* UI functions to enable us to update the sequence data
+
 (define (seq-reset)
   (post "reseting step to 0")
   (set! curr-step 0))
 
-;; update a specific track, ie. (set-data {step} :on {value})
-(define (set-track-data param step value)
-  (set! ((trk-data :param) step) value)) 
+;; update a specific track
+;; (set-data {step} :on {value})
+(define (set-track-data step param value)
+  (set! ((track-data param) step) value))
 
-;; update all values for a step, params is '({on} {dur} {note} {vel})
-;; ie (set-data 4 1 480 64 128)
-(define (set-data step params) 
-  (set! ((track-data :on) step) (params 0))
-  (set! ((track-data :dur) (
-    
-;; a function to take in a list of: step, active, dur, note, vel and set the
-;; data accordingly
-
+;; update all values for a step.
+;; note-data-list is '({on} {dur} {note} {vel})
+;;; e.g. (set-data 2 '(1 120 60 100)) 
+;;; sets play(1) C3(60) 16th note(120) at 100 velocity on step #2.
+(define (set-data step param-list)
+  (set! ((track-data :on)   step) (param-list 0))
+  (set! ((track-data :dur)  step) (param-list 1))
+  (set! ((track-data :note) step) (param-list 2))
+  (set! ((track-data :vel)  step) (param-list 3)) )
 
 ;*******************************************************************************
 ;; Engine functions for the sequencer
@@ -60,25 +66,24 @@
 ;; return a hash (dict) of step data: active, dur, vel, note
 (define (get-step-data step)
   (hash-table 
-    :on   ((trk-data :on)   step) 
-    :dur  ((trk-data :dur)  step) 
-    :note ((trk-data :note) step) 
-    :vel  ((trk-data :vel)  step))) 
+    :on   ((track-data :on)   step) 
+    :dur  ((track-data :dur)  step) 
+    :note ((track-data :note) step) 
+    :vel  ((track-data :vel)  step))) 
 
 ;; play a note: output a list of values for duration, pitch, amp, suitable
 ;; for sending to a midi out patcher
 (define (play-note step)
-  (post "play note, step: ", step)
+  (post "play note, step: " step)
   (let ((step-data (get-step-data step)))
-    ;; if step is active, output a list of (dur, note, vel)
-    (if (> 0 (step-data :on))
-      (out 0 (list (step-data :dur) (step-data :note) (step-data :vel)))))) 
+    (if (= 1 (step-data :on))
+        (out 0 (list (step-data :dur)
+                     (step-data :note)
+                     (step-data :vel) ))
+        (post "step is off") )))
 
 ;; callback to trigger runing a step, could be hooked up to a metro, etc 
 (define (tick)
   (post "tick!")
   (inc-step)
   (play-note curr-step))
-
-
-
